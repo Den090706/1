@@ -1,0 +1,282 @@
+#include <iostream>
+#include <vector>
+#include <random>
+
+const int SIZE = 7;
+char board[SIZE][SIZE];
+
+struct Chicken {
+    int row;
+    int col;
+    bool eaten;
+};
+
+struct Fox {
+    int row;
+    int col;
+    bool eaten;
+};
+
+// Ініціалізуємо порожнє поле
+void initializeBoard() {
+    for (int i = 0; i < SIZE; i++) {
+        for (int j = 0; j < SIZE; j++) {
+            board[i][j] = ' ';
+        }
+        std::cout<< std::endl;
+    }
+    std::cout<< std::endl;
+}
+
+
+// Виводимо поле на екран
+void printBoard() {
+    std::cout << "   ";
+    for (int col = 0; col < SIZE; ++col) {
+        std::cout << " " << col << "  ";
+    }
+    std::cout << std::endl;
+
+    std::cout << "  ";
+    for (int col = 0; col < SIZE; ++col) {
+        std::cout << "----";
+    }
+    std::cout << std::endl;
+
+    for (int row = 0; row < SIZE; ++row) {
+        std::cout << row << " |";
+        for (int col = 0; col < SIZE; ++col) {
+            std::cout << " " << board[row][col] << " |";
+        }
+        std::cout << std::endl;
+
+        std::cout << "  ";
+        for (int col = 0; col < SIZE; ++col) {
+            std::cout << "----";
+        }
+        std::cout << std::endl;
+    }
+    std::cout << std::endl;
+}
+bool isValidMove(int row, int col) {
+    return (row >= 0 && row < SIZE && col >= 0 && col < SIZE && board[row][col] == ' ');
+}
+
+bool checkWin(const std::vector<Chicken>& chickens) {
+    for (const auto& chicken : chickens) {
+        if (!chicken.eaten) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool isChickenEaten(const Chicken& chicken, const std::vector<Fox>& foxes) {
+    int row = chicken.row;
+    int col = chicken.col;
+
+    // Можливі напрямки для перевірки
+    int directions[4][2] = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
+
+    // Перевіряємо кожен напрямок
+    for (const auto& dir : directions) {
+        int newRow = row + dir[0];
+        int newCol = col + dir[1];
+
+        // Перевірка, чи знаходиться нове поле у межах дошки і чи є воно вільним
+        if (newRow >= 0 && newRow < SIZE && newCol >= 0 && newCol < SIZE && board[newRow][newCol] == ' ') {
+            // Перевірка, чи є лисиця на новому полі
+            for (const auto& fox : foxes) {
+                if (fox.row == newRow && fox.col == newCol) {
+                    return true;  // Лисиця знаходиться за куркою
+                }
+            }
+        }
+    }
+
+    return false;  // Немає лисиці за куркою
+}
+
+
+
+// Функція для здійснення ходу лисицею
+void makeFoxMove(std::vector<Chicken>& chickens, std::vector<Fox>& foxes) {
+    std::vector<std::pair<int, int>> validMoves;
+
+    // Знаходимо всі допустимі ходи для лисиць
+    for (const auto& fox : foxes) {
+        int row = fox.row;
+        int col = fox.col;
+
+        // Перевірка допустимості кожного ходу і додавання його у список
+        if (isValidMove(row - 1, col) && isValidMove(row - 2, col) && board[row - 1][col] == ' ') {
+            validMoves.emplace_back(row - 2, col);
+        }
+        if (isValidMove(row + 1, col) && isValidMove(row + 2, col) && board[row + 1][col] == ' ') {
+            validMoves.emplace_back(row + 2, col);
+        }
+        if (isValidMove(row, col - 1) && isValidMove(row, col - 2) && board[row][col - 1] == ' ') {
+            validMoves.emplace_back(row, col - 2);
+        }
+        if (isValidMove(row, col + 1) && isValidMove(row, col + 2) && board[row][col + 1] == ' ') {
+            validMoves.emplace_back(row, col + 2);
+        }
+    }
+
+    if (!validMoves.empty()) {
+        // Вибираємо випадковий допустимий хід зі списку
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::uniform_int_distribution<> dis(0, validMoves.size() - 1);
+        int index = dis(gen);
+        int newRow = validMoves[index].first;
+        int newCol = validMoves[index].second;
+
+        // Здійснюємо хід лисицею
+        for (auto& fox : foxes) {
+            if (fox.row == newRow && fox.col == newCol && isValidMove(newRow, newCol)) {
+                board[fox.row][fox.col] = ' ';
+                fox.row = newRow;
+                fox.col = newCol;
+                board[fox.row][fox.col] = 'F';
+                break;
+            }
+        }
+
+        // Перевіряємо, чи з'їдено курей
+        for (auto& chicken : chickens) {
+            if (chicken.row == newRow && chicken.col == newCol) {
+                // Перевірка, чи за куркою є вільне поле
+                int row = chicken.row;
+                int col = chicken.col;
+                bool freeSpace = false;
+                if (row > 0 && board[row - 1][col] == ' ') {
+                    freeSpace = true;
+                } else if (row < SIZE - 1 && board[row + 1][col] == ' ') {
+                    freeSpace = true;
+                } else if (col > 0 && board[row][col - 1] == ' ') {
+                    freeSpace = true;
+                } else if (col < SIZE - 1 && board[row][col + 1] == ' ') {
+                    freeSpace = true;
+                }
+
+                if (freeSpace) {
+                    chicken.eaten = true;
+                    board[chicken.row][chicken.col] = ' '; // Оновлення положення з'їденої курки
+                }
+                break;
+            }
+        }
+    }
+}
+
+int main() {
+    initializeBoard();
+    std::vector<Chicken> chickens;
+
+    chickens.push_back({3, 0, false});
+    chickens.push_back({3, 1, false});
+    chickens.push_back({3, 2, false});
+    chickens.push_back({3, 3, false});
+    chickens.push_back({3, 4, false});
+    chickens.push_back({3, 5, false});
+    chickens.push_back({3, 6, false});
+
+    chickens.push_back({4, 0, false});
+    chickens.push_back({4, 1, false});
+    chickens.push_back({4, 2, false});
+    chickens.push_back({4, 3, false});
+    chickens.push_back({4, 4, false});
+    chickens.push_back({4, 5, false});
+    chickens.push_back({4, 6, false});
+
+    chickens.push_back({5, 2, false});
+    chickens.push_back({5, 3, false});
+    chickens.push_back({5, 4, false});
+
+    chickens.push_back({6, 2, false});
+    chickens.push_back({6, 3, false});
+    chickens.push_back({6, 4, false});
+
+    std::vector<Fox> foxes;
+
+    foxes.push_back({2, 2, false});
+    foxes.push_back({2, 4, false});
+
+
+
+for (const auto& chicken : chickens) {
+        board[chicken.row][chicken.col] = 'C';
+    }
+    for (const auto& fox : foxes) {
+        board[fox.row][fox.col] = 'F';
+    }
+
+    printBoard(); 
+while (true) {
+        
+
+        // Хід гравця
+        int selectedChickenIndex = -1;
+
+        while (true) {
+            // Вибір курки
+            int chickenRow, chickenCol;
+            std::cout << "Enter the row and column for the chicken (separated by space): ";
+            std::cin >> chickenRow >> chickenCol;
+
+            // Пошук відповідної курки за координатами
+            selectedChickenIndex = -1;
+            for (int i = 0; i < chickens.size(); ++i) {
+                if (chickens[i].row == chickenRow && chickens[i].col == chickenCol && !chickens[i].eaten) {
+                    selectedChickenIndex = i;
+                    break;
+                }
+            }
+
+            if (selectedChickenIndex == -1) {
+                std::cout << "Invalid chicken selection! Try again." << std::endl;
+                continue;
+            }
+
+            std::cout << "Selected chicken: " << selectedChickenIndex << std::endl;
+
+           // Хід з вибраною куркою
+                int row, col;
+                std::cout << "Enter the row and column for the chicken's move: ";
+                std::cin >> row >> col;
+
+                if (row < 0 || row >= SIZE || col < 0 || col >= SIZE) {
+                        std::cout << "Invalid move! Try again." << std::endl;
+                        continue;
+                        }
+
+                Chicken& selectedChicken = chickens[selectedChickenIndex];
+                if (selectedChicken.eaten || !isValidMove(row, col)) {
+                    std::cout << "Invalid move! Try again." << std::endl;
+                    continue;
+                    }
+
+                // Рухаємо курку
+                board[selectedChicken.row][selectedChicken.col] = ' ';
+                selectedChicken.row = row;
+                selectedChicken.col = col;
+                board[selectedChicken.row][selectedChicken.col] = 'C';
+
+break;
+        }
+        printBoard();
+
+        // Хід лисиці
+        makeFoxMove(chickens, foxes);
+    printBoard();
+
+    if (checkWin(chickens)) {
+        std::cout << "You lose!" << std::endl;
+        break;
+    }
+}
+
+
+    return 0;
+}
